@@ -1,29 +1,26 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
-from functions import get_data, pct_calc, volitlity_calc, buy_order, sell_order
+from functions import get_data, pct_calc, volitlity_calc, buy_order, sell_order, get_entry_time
 
 COINS = ["BTC/USD", "ETH/USD", "SOL/USD", "XRP/USD", "ADA/USD"]
 THRESHOLDS = {"BTC/USD": -7, "ETH/USD": -8, "SOL/USD": -10, "XRP/USD": -6, "ADA/USD": -8}
-
-entry_time = {coin: None for coin in COINS}
 
 while True:
     for coin in COINS:
         df = get_data(coin)
         pct_change = pct_calc(df)
         vol_expansion = volitlity_calc(df)
+        entry_time = get_entry_time(coin)
 
-        if entry_time[coin] is None:
+        if entry_time is None:   # no trade open, so a buy is allowed
             if pct_change <= THRESHOLDS[coin] and vol_expansion <= -0.07:
                     buy_order(coin)
-                    entry_time[coin] = datetime.utcnow()
                     print(f"Buy order Submitted for:{coin}")
-        else:
-            if datetime.utcnow() - entry_time[coin] > timedelta(hours=24):
+        else:                    # trade open, so no new buy (cooldown)
+            if datetime.now(timezone.utc) - entry_time > timedelta(hours=24):
                         sell_order(coin)
-                        entry_time[coin] = None
                         print(f"Sell order Submitted for:{coin}")
 
-    time.sleep(1800)
+    time.sleep(1800)

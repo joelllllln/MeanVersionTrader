@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import MarketOrderRequest
-from alpaca.trading.enums import OrderSide, TimeInForce
+from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest
+from alpaca.trading.enums import OrderSide, TimeInForce, QueryOrderStatus
 from alpaca.data.historical import CryptoHistoricalDataClient
 from alpaca.data.requests import CryptoBarsRequest
 from alpaca.data.timeframe import TimeFrame
@@ -61,11 +61,19 @@ def buy_order(coin):
 #DAY - cancels at end of trading day if not filled
 
 def sell_order(coin):
-    order = trade_client.submit_order(
-        MarketOrderRequest(
-            symbol = coin, 
-            notional=100000,
-            side=OrderSide.SELL,
-            time_in_force=TimeInForce.IOC
-        )
-    )
+    # sells the exact amount you hold
+    trade_client.close_position(coin.replace("/", ""))
+
+def get_entry_time(coin):
+    # no open position = no trade active
+    try:
+        trade_client.get_open_position(coin.replace("/", ""))
+    except Exception:
+        return None
+    # find the last buy the loop made for this coin
+    orders = trade_client.get_orders(GetOrdersRequest(
+        status=QueryOrderStatus.CLOSED,
+        symbols=[coin],
+        side=OrderSide.BUY,
+        limit=1))
+    return orders[0].filled_at
